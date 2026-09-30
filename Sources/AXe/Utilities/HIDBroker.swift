@@ -281,8 +281,9 @@ enum HIDBroker {
             guard now < deadline else {
                 throw HIDBrokerNotReadyError(diagnosticDescription: "The broker startup deadline expired.")
             }
-            let remainingMilliseconds = max(1, Int((deadline - now) / 1_000_000))
-            return min(serverIOTimeoutMilliseconds, remainingMilliseconds)
+            // Simulator readiness and connection preparation can outlast request I/O. Bound the
+            // handshake by the startup deadline before sending any caller input.
+            return max(1, Int((deadline - now) / 1_000_000))
         }
 
         do {

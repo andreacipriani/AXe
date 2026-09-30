@@ -136,6 +136,43 @@ struct HIDBrokerReliabilityTests {
         }
     }
 
+    @Test("Connection preparation can outlast the per-request I/O timeout")
+    func readinessHandshakeWaitsForPreparation() throws {
+        let endpoint = try makeEndpoint()
+        defer { removeEndpointArtifacts(endpoint) }
+        var descriptors = [Int32](repeating: -1, count: 2)
+        try #require(socketpair(AF_UNIX, SOCK_STREAM, 0, &descriptors) == 0)
+        let client = descriptors[0]
+        let peer = descriptors[1]
+        HIDBroker.configureNoSignalPipe(peer)
+        let finished = DispatchSemaphore(value: 0)
+        defer {
+            finished.wait()
+            Darwin.close(peer)
+        }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 2.25) {
+            defer { finished.signal() }
+            try? HIDBroker.writeHandshake(ready: true, to: peer)
+        }
+
+        var connectionCount = 0
+        let descriptor = try HIDBroker.connectToReadyBroker(
+            simulatorUDID: "simulator-a",
+            endpoint: endpoint,
+            connector: { _ in
+                connectionCount += 1
+                guard connectionCount == 1 else {
+                    throw TestError.unexpectedState("Reconnected before connection preparation finished")
+                }
+                return client
+            },
+            spawner: { _ in Issue.record("A preparing broker must not be replaced") },
+            sleeper: { _ in }
+        )
+        Darwin.close(descriptor)
+        #expect(connectionCount == 1)
+    }
+
     private func makeEndpoint() throws -> String {
         try HIDBroker.endpointPath(
             simulatorUDID: UUID().uuidString,

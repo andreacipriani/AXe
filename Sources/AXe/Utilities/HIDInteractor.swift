@@ -29,8 +29,6 @@ struct HIDInteractor {
         return 25
     }
 
-    /// DTUHID activates its services only after a peer sends its first message. An inert
-    /// usage-zero key-up primes that peer; the boot is rechecked after the activation wait.
     static func makeSession(for simulatorUDID: String, logger: AxeLogger) async throws -> Session {
         logger.info().log("Loading private frameworks for HID operations...")
         let frameworkLoader = FBSimulatorControlFrameworkLoader.xcodeFrameworks
@@ -93,10 +91,6 @@ struct HIDInteractor {
             now: Date.init,
             sleep: { delay in try await Task.sleep(for: .seconds(delay)) }
         )
-        if hid.transportType == .dtuhid {
-            try await hid.send(event: .keyboard(direction: .up, keyCode: 0), logger: logger)
-            try await Task.sleep(for: .milliseconds(750))
-        }
         let readyBootIdentity = try HIDBroker.currentBootIdentity(simulatorUDID: simulatorUDID)
         guard HIDBroker.shouldReuseSession(
             sessionBootIdentity: connectedBootIdentity,
@@ -258,6 +252,19 @@ struct HIDInteractor {
 
         logger.info().log("Creating new HID connection for simulator \(simulator.udid)...")
         let hid = try await simulator.connectToHID()
+
+        do {
+            if hid.transportType == .dtuhid {
+                // DTUHID activates its services after a peer's first message. Usage zero is inert.
+                // Activation exceeded 1.4s in fresh-simulator tests; allow two seconds because
+                // this transport exposes no readiness acknowledgement before caller input.
+                try await hid.send(event: .keyboard(direction: .up, keyCode: 0), logger: logger)
+                try await Task.sleep(for: .seconds(2))
+            }
+        } catch {
+            hid.disconnect()
+            throw error
+        }
 
         hidConnections[simulator.udid] = hid
         logger.info().log("HID connection created and cached for simulator \(simulator.udid)")
