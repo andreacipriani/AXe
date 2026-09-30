@@ -91,6 +91,12 @@ struct HIDInteractor {
             now: Date.init,
             sleep: { delay in try await Task.sleep(for: .seconds(delay)) }
         )
+        if hid.transportType == .dtuhid {
+            // dtuhidd activates its virtual services only after the first message from a peer.
+            // Spend that message on an inert key-up so a short-lived command's first gesture is not dropped.
+            try await hid.send(event: .keyboard(direction: .up, keyCode: 0), logger: logger)
+            try await Task.sleep(for: .milliseconds(750))
+        }
         return Session(simulatorUDID: simulatorUDID, simulator: simulator, hid: hid)
     }
 
