@@ -29,6 +29,9 @@ struct HIDInteractor {
         return 25
     }
 
+    /// Creates a session after HID warm-up, validating that the simulator remains in the same
+    /// boot across asynchronous connection preparation and readiness checks.
+    /// - Throws: If initialization fails, readiness checks fail, or the simulator restarts.
     static func makeSession(for simulatorUDID: String, logger: AxeLogger) async throws -> Session {
         logger.info().log("Loading private frameworks for HID operations...")
         let frameworkLoader = FBSimulatorControlFrameworkLoader.xcodeFrameworks
@@ -243,7 +246,9 @@ struct HIDInteractor {
         }
     }
 
-    // Get or create a cached HID connection (matching CompanionLib's connectToHID behavior)
+    /// Prepares new DTUHID connections before caching so caller input does not trigger service
+    /// activation. Failed or cancelled preparation disconnects the uncached connection.
+    /// Cached connections are keyed by UDID; the caller must validate the simulator's boot identity.
     private static func getOrCreateHIDConnection(for simulator: FBSimulator, logger: AxeLogger) async throws -> FBSimulatorHID {
         if let existingHID = hidConnections[simulator.udid] {
             logger.info().log("Using existing HID connection for simulator \(simulator.udid)")

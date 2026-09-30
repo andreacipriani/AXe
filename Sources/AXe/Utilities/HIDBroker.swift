@@ -265,6 +265,8 @@ enum HIDBroker {
         }
     }
 
+    /// Waits for broker readiness within a shared startup deadline, without sending caller input.
+    /// The caller owns the returned socket descriptor and must close it after exchanging a request.
     static func connectToReadyBroker(
         simulatorUDID: String,
         endpoint: String,
@@ -276,13 +278,13 @@ enum HIDBroker {
         let startedAt = monotonicNow()
         let deadlineResult = startedAt.addingReportingOverflow(startupTimeoutNanoseconds)
         let deadline = deadlineResult.overflow ? UInt64.max : deadlineResult.partialValue
+        /// Uses the remaining startup budget because simulator readiness and connection
+        /// preparation can outlast the per-request I/O timeout.
         func handshakeTimeout() throws -> Int {
             let now = monotonicNow()
             guard now < deadline else {
                 throw HIDBrokerNotReadyError(diagnosticDescription: "The broker startup deadline expired.")
             }
-            // Simulator readiness and connection preparation can outlast request I/O. Bound the
-            // handshake by the startup deadline before sending any caller input.
             return max(1, Int((deadline - now) / 1_000_000))
         }
 
