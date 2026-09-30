@@ -56,9 +56,8 @@ DEFAULT_IDB_CHECKOUT_DIR="${REPO_ROOT}/idb_checkout"
 IDB_CHECKOUT_DIR="${IDB_CHECKOUT_DIR:-${DEFAULT_IDB_CHECKOUT_DIR}}"
 IDB_CHECKOUT_DIR="$(cd "$(dirname "$IDB_CHECKOUT_DIR")" && pwd)/$(basename "$IDB_CHECKOUT_DIR")"
 IDB_GIT_URL="${IDB_GIT_URL:-https://github.com/cameroncooke/idb.git}"
-DEFAULT_IDB_GIT_REF="d9b02035665947b12e19b9340f4c067bcf702fea"
+DEFAULT_IDB_GIT_REF="604c51013438f0c3603b720a05a44b7c5b8f286d"
 IDB_GIT_REF="${IDB_GIT_REF:-${DEFAULT_IDB_GIT_REF}}"
-IDB_GIT_FETCH_REF="${IDB_GIT_FETCH_REF:-refs/pull/2/head}"
 IDB_UPSTREAM_BASE_REF="${IDB_UPSTREAM_BASE_REF:-e682506725e9efefb9c43b8b917c0b12eb2a5939}"
 BUILD_OUTPUT_DIR="${BUILD_OUTPUT_DIR:-./build_products}"
 DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-./build_derived_data}"
@@ -354,7 +353,6 @@ function fresh_clone_idb_repo() {
   replacement_checkout="${IDB_REPLACEMENT_ROOT}/checkout"
   print_info "Cloning AXe's IDB fork into $IDB_CHECKOUT_DIR..."
   if ! git clone --no-checkout "$IDB_GIT_URL" "$replacement_checkout" ||
-     ! git -C "$replacement_checkout" fetch origin "$IDB_GIT_FETCH_REF" ||
      ! git -C "$replacement_checkout" checkout --detach "$IDB_GIT_REF"; then
     cleanup_current_idb_replacement
     return 1
@@ -404,7 +402,7 @@ function clone_idb_repo() {
 
     print_info "Updating AXe's IDB fork to $IDB_GIT_REF..."
     git -C "$IDB_CHECKOUT_DIR" remote set-url origin "$IDB_GIT_URL"
-    if ! (cd "$IDB_CHECKOUT_DIR" && git fetch origin --tags --prune && git fetch origin "$IDB_GIT_FETCH_REF" && git checkout -- . && git clean -fd && git checkout --detach "$IDB_GIT_REF"); then
+    if ! (cd "$IDB_CHECKOUT_DIR" && git fetch origin --tags --prune && git checkout -- . && git clean -fd && git checkout --detach "$IDB_GIT_REF"); then
       print_warning "The cached IDB checkout is incomplete; replacing it with a clean clone."
       fresh_clone_idb_repo
     else
@@ -492,7 +490,6 @@ function write_idb_build_evidence() {
   {
     echo "IDB_SHA=${IDB_GIT_REF}"
     echo "IDB_GIT_URL=${IDB_GIT_URL}"
-    echo "IDB_GIT_FETCH_REF=${IDB_GIT_FETCH_REF}"
     echo "IDB_UPSTREAM_BASE_SHA=${IDB_UPSTREAM_BASE_REF}"
     echo "DEVELOPER_DIR=${DEVELOPER_DIR:-<not set>}"
     echo "XCODE_VERSION=$(xcodebuild -version | tr '\n' ' ')"
@@ -1248,7 +1245,6 @@ Environment Variables (set inline, exported, or via a git-ignored .env file):
   IDB_CHECKOUT_DIR       Directory for IDB repository (default: ./idb_checkout)
   IDB_GIT_URL            AXe IDB fork URL (default: https://github.com/cameroncooke/idb.git)
   IDB_GIT_REF            Exact fork revision (default: ${DEFAULT_IDB_GIT_REF})
-  IDB_GIT_FETCH_REF      Ref to fetch the pinned revision (default: refs/pull/2/head)
   IDB_UPSTREAM_BASE_REF  Verified upstream base (default: e682506725e9efefb9c43b8b917c0b12eb2a5939)
   BUILD_OUTPUT_DIR       Directory for build outputs (default: ./build_products)
   DERIVED_DATA_PATH      Directory for derived data (default: ./build_derived_data)
