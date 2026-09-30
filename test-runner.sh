@@ -71,6 +71,7 @@ show_usage() {
     echo "  KeyComboTests       Run only key-combo tests"
     echo "  KeySequenceTests    Run only key-sequence tests"
     echo "  TapTests            Run only tap tests"
+    echo "  SettingsTapTests    Run the first-tap Settings regression without AxePlayground"
     echo "  KeyTests            Run only key tests"
     echo "  TouchTests          Run only touch tests"
     echo "  TypeTests           Run only type tests"
@@ -86,6 +87,7 @@ show_usage() {
     echo "  $0 SwipeTests       # Build everything and run only swipe tests"
     echo "  $0 DragTests        # Build everything and run only drag tests"
     echo "  $0 -t SwipeTests    # Skip building, run only swipe tests"
+    echo "  $0 SettingsTapTests # Build AXe and test first taps in Settings without AxePlayground"
     echo "  $0 -u               # Build and run non-E2E Swift tests without a simulator"
     echo "  $0 -b               # Only build, skip tests"
     echo "  $0 -c               # Clean build and run all tests"
@@ -139,7 +141,7 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
-        BatchTests|ButtonTests|DescribeUITests|GestureTests|InitTests|KeyComboTests|KeySequenceTests|KeyTests|ListSimulatorsTests|RecordVideoTests|StreamVideoDebugTests|StreamVideoTests|SwipeTests|DragTests|SliderTests|TapTests|TouchTests|TypeTests)
+        BatchTests|ButtonTests|DescribeUITests|GestureTests|InitTests|KeyComboTests|KeySequenceTests|KeyTests|ListSimulatorsTests|RecordVideoTests|StreamVideoDebugTests|StreamVideoTests|SwipeTests|DragTests|SliderTests|TapTests|TouchTests|TypeTests|SettingsTapTests)
             TEST_FILTER="$1"
             shift
             ;;
@@ -228,8 +230,10 @@ clean_build() {
         print_info "Cleaning Swift build..."
         run_selected_swift package clean
 
-        print_info "Cleaning Xcode build..."
-        xcodebuild clean -project "$PLAYGROUND_PROJECT" -scheme "$PLAYGROUND_SCHEME" -destination "id=$SIMULATOR_UDID"
+        if [[ "$TEST_FILTER" != "SettingsTapTests" ]]; then
+            print_info "Cleaning Xcode build..."
+            xcodebuild clean -project "$PLAYGROUND_PROJECT" -scheme "$PLAYGROUND_SCHEME" -destination "id=$SIMULATOR_UDID"
+        fi
 
         print_success "Build cleaned"
     fi
@@ -466,6 +470,7 @@ run_tests() {
             "DragTests"
             "SliderTests"
             "TapTests"
+            "SettingsTapTests"
             "TouchTests"
             "TypeTests"
         )
@@ -503,7 +508,9 @@ show_summary() {
     if [[ "$BUILD_ONLY" == true ]]; then
         print_success "Build completed successfully"
         print_info "AXe executable: $(run_selected_swift build --show-bin-path)/axe"
-        print_info "Playground app installed on: $SIMULATOR_NAME ($SIMULATOR_UDID)"
+        if [[ "$TEST_FILTER" != "SettingsTapTests" ]]; then
+            print_info "Playground app installed on: $SIMULATOR_NAME ($SIMULATOR_UDID)"
+        fi
     elif [[ "$TESTS_ONLY" == true ]]; then
         if [[ -n "$TEST_FILTER" ]]; then
             print_success "Test suite '$TEST_FILTER' completed successfully"
@@ -513,7 +520,9 @@ show_summary() {
     else
         print_success "Build and test cycle completed successfully"
         print_info "AXe executable: $(run_selected_swift build --show-bin-path)/axe"
-        print_info "Playground app: Installed and tested on $SIMULATOR_NAME"
+        if [[ "$TEST_FILTER" != "SettingsTapTests" ]]; then
+            print_info "Playground app: Installed and tested on $SIMULATOR_NAME"
+        fi
         if [[ -n "$TEST_FILTER" ]]; then
             print_info "Test suite: $TEST_FILTER"
         else
@@ -553,7 +562,9 @@ main() {
         clean_build
         build_axe
         ensure_test_framework_rpaths
-        build_playground_app
+        if [[ "$TEST_FILTER" != "SettingsTapTests" ]]; then
+            build_playground_app
+        fi
     fi
 
     if [[ "$BUILD_ONLY" != true ]]; then

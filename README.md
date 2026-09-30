@@ -39,6 +39,8 @@ AXe builds IDB from the immutable fork revision configured in `scripts/build.sh`
 
 To validate a release payload unchanged under another supported Xcode, first build the test bundle with that Xcode, then run `AXE_BIN_PATH=/path/to/release/axe ./test-runner.sh --tests-only`. The supplied executable must retain its packaged frameworks beside it.
 
+To check first-tap delivery on iOS 27 without the AxePlayground project, boot an iOS 27 simulator and run `SIMULATOR_UDID=<UDID> ./test-runner.sh SettingsTapTests`. This builds the pinned IDB frameworks and AXe, then taps General in Settings five times from fresh CLI processes.
+
 ## Basic usage
 
 ```bash
