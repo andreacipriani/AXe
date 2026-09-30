@@ -29,8 +29,8 @@ struct HIDInteractor {
         return 25
     }
 
-    /// DTUHID activates its services only after a peer sends its first message. An inert
-    /// usage-zero key-up primes that peer; the boot is rechecked after the activation wait.
+    /// Transport setup can suspend while DTUHID activates its services, so the simulator boot
+    /// identity must still match after connection setup before caller input is allowed.
     static func makeSession(for simulatorUDID: String, logger: AxeLogger) async throws -> Session {
         logger.info().log("Loading private frameworks for HID operations...")
         let frameworkLoader = FBSimulatorControlFrameworkLoader.xcodeFrameworks
@@ -93,15 +93,11 @@ struct HIDInteractor {
             now: Date.init,
             sleep: { delay in try await Task.sleep(for: .seconds(delay)) }
         )
-        if hid.transportType == .dtuhid {
-            try await hid.send(event: .keyboard(direction: .up, keyCode: 0), logger: logger)
-            try await Task.sleep(for: .milliseconds(750))
-        }
-        guard let readyBootIdentity = try? HIDBroker.currentBootIdentity(simulatorUDID: simulatorUDID),
-              HIDBroker.shouldReuseSession(
-                  sessionBootIdentity: connectedBootIdentity,
-                  currentBootIdentity: readyBootIdentity
-              ) else {
+        let readyBootIdentity = try HIDBroker.currentBootIdentity(simulatorUDID: simulatorUDID)
+        guard HIDBroker.shouldReuseSession(
+            sessionBootIdentity: connectedBootIdentity,
+            currentBootIdentity: readyBootIdentity
+        ) else {
             hidConnections.removeValue(forKey: simulatorUDID)
             throw CLIError(
                 errorDescription: "Simulator \(simulatorUDID) restarted while AXe was preparing input. Try the command again."
